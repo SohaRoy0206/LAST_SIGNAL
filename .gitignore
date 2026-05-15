@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# Environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Embedded git repos (handle separately)
+frontend/.git/
+Backend/venv/
+
+# Next.js specific
+frontend/.next/
+frontend/out/
+
+# Python specific
+Backend/.pytest_cache/
+Backend/.coverage

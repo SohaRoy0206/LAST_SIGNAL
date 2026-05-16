@@ -18,6 +18,7 @@ export default function Home() {
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -28,6 +29,7 @@ export default function Home() {
         setError(null);
         const response = await axios.get<TelemetryData>('http://localhost:8000/api/telemetry');
         setTelemetry(response.data);
+        setLastUpdate(new Date());  // Track when data was updated
         setLoading(false);
       } catch (err) {
         // Handle different types of errors
@@ -244,19 +246,29 @@ export default function Home() {
         <div className="text-center mb-16">
           {/* Title with glow */}
           <div className="mb-6">
-            <h1
-              className="text-5xl md:text-7xl font-black mb-4 tracking-wider"
-              style={{
-                background: 'linear-gradient(135deg, #00ffff 0%, #00ccff 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                textShadow: '0 0 30px rgba(34, 211, 238, 0.3)',
-                filter: 'drop-shadow(0 0 20px rgba(34, 211, 238, 0.3))',
-              }}
-            >
-              LAST SIGNAL
-            </h1>
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <h1
+                className="text-5xl md:text-7xl font-black tracking-wider"
+                style={{
+                  background: 'linear-gradient(135deg, #00ffff 0%, #00ccff 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  textShadow: '0 0 30px rgba(34, 211, 238, 0.3)',
+                  filter: 'drop-shadow(0 0 20px rgba(34, 211, 238, 0.3))',
+                }}
+              >
+                LAST SIGNAL
+              </h1>
+
+              {/* LIVE Indicator Badge */}
+              {mounted && telemetry && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-full border border-green-500/50 bg-green-500/10 backdrop-blur-sm">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-xs font-bold text-green-400 tracking-wider">LIVE</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Subtitle */}

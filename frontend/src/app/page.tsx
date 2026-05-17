@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import AnomalyAlerts from './components/AnomalyAlerts';
 
 // Type definition for telemetry data from backend
 interface TelemetryData {
@@ -19,6 +21,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  // New: Store historical data for charts (keeps last 20 data points)
+  const [chartData, setChartData] = useState<Array<{
+    timestamp: string;
+    satellite_health: number;
+    failure_risk: number;
+    temperature: number;
+  }>>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -31,6 +40,22 @@ export default function Home() {
         setTelemetry(response.data);
         setLastUpdate(new Date());  // Track when data was updated
         setLoading(false);
+        
+        // New: Add data point to chart history
+        // This keeps only the latest 20 data points
+        setChartData(prev => {
+          const newData = [
+            ...prev,
+            {
+              timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              satellite_health: response.data.satellite_health,
+              failure_risk: response.data.failure_risk,
+              temperature: response.data.temperature,
+            }
+          ];
+          // Keep only last 20 data points
+          return newData.length > 20 ? newData.slice(-20) : newData;
+        });
       } catch (err) {
         // Handle different types of errors
         if (axios.isAxiosError(err)) {
@@ -51,6 +76,99 @@ export default function Home() {
     // Cleanup interval when component unmounts
     return () => clearInterval(interval);
   }, []);
+
+  // New: Chart component that displays a line chart with cyberpunk styling
+  const TelemetryChart = ({
+    title,
+    dataKey,
+    color,
+    unit,
+  }: {
+    title: string;
+    dataKey: 'satellite_health' | 'failure_risk' | 'temperature';
+    color: string;
+    unit: string;
+  }) => (
+    <div
+      className="relative overflow-hidden rounded-2xl backdrop-blur-md border transition-all duration-300"
+      style={{
+        backgroundColor: color === 'cyan' ? 'rgba(34, 211, 238, 0.05)' : color === 'red' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(34, 197, 94, 0.05)',
+        borderColor: color === 'cyan' ? 'rgba(34, 211, 238, 0.3)' : color === 'red' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)',
+        boxShadow: color === 'cyan'
+          ? '0 0 20px rgba(34, 211, 238, 0.1), inset 0 1px 1px rgba(34, 211, 238, 0.1)'
+          : color === 'red'
+            ? '0 0 20px rgba(239, 68, 68, 0.1), inset 0 1px 1px rgba(239, 68, 68, 0.1)'
+            : '0 0 20px rgba(34, 197, 94, 0.1), inset 0 1px 1px rgba(34, 197, 94, 0.1)',
+      }}
+    >
+      <div className="relative p-6 z-10">
+        <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">{title}</h3>
+        
+        {/* Recharts ResponsiveContainer for the line chart */}
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={chartData}>
+            {/* Background grid - very subtle */}
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(34, 211, 238, 0.1)"
+              vertical={false}
+            />
+            
+            {/* X-axis (time) - hidden labels to keep it clean */}
+            <XAxis
+              dataKey="timestamp"
+              tick={{ fontSize: 12, fill: 'rgba(156, 163, 175, 0.6)' }}
+              stroke="rgba(34, 211, 238, 0.2)"
+            />
+            
+            {/* Y-axis (values) - shows min/max for the metric */}
+            <YAxis
+              tick={{ fontSize: 12, fill: 'rgba(156, 163, 175, 0.6)' }}
+              stroke="rgba(34, 211, 238, 0.2)"
+              domain={dataKey === 'temperature' ? ['dataMin - 5', 'dataMax + 5'] : [0, 100]}
+            />
+            
+            {/* Interactive tooltip on hover */}
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(5, 8, 22, 0.9)',
+                border: `1px solid ${color === 'cyan' ? 'rgba(34, 211, 238, 0.5)' : color === 'red' ? 'rgba(239, 68, 68, 0.5)' : 'rgba(34, 197, 94, 0.5)'}`,
+                borderRadius: '8px',
+                backdropFilter: 'blur(10px)',
+              }}
+              labelStyle={{ color: 'rgba(156, 163, 175, 0.8)' }}
+              formatter={(value) => [`${Number(value).toFixed(1)}${unit}`, title]}
+            />
+            
+            {/* The actual line - smooth curve with glow effect */}
+            <Line
+              type="monotone"
+              dataKey={dataKey}
+              stroke={color === 'cyan' ? '#00ffff' : color === 'red' ? '#ef4444' : '#22c55e'}
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+              style={{
+                filter: `drop-shadow(0 0 8px ${color === 'cyan' ? 'rgba(34, 211, 238, 0.6)' : color === 'red' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(34, 197, 94, 0.6)'})`,
+              }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Corner accent for visual polish */}
+      <div
+        className="absolute top-0 right-0 w-20 h-20 opacity-20 pointer-events-none"
+        style={{
+          background: color === 'cyan'
+            ? 'radial-gradient(circle, rgba(34, 211, 238, 0.4), transparent)'
+            : color === 'red'
+              ? 'radial-gradient(circle, rgba(239, 68, 68, 0.4), transparent)'
+              : 'radial-gradient(circle, rgba(34, 197, 94, 0.4), transparent)',
+        }}
+      />
+    </div>
+  );
 
   const CircularProgress = ({ percentage, color }: { percentage: number; color: string }) => {
     const circumference = 2 * Math.PI * 45;
@@ -287,6 +405,13 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ANOMALY ALERTS SECTION - Shows warnings if there are issues */}
+        {mounted && telemetry && (
+          <div className="mt-8 max-w-6xl mx-auto mb-8">
+            <AnomalyAlerts telemetry={telemetry} />
+          </div>
+        )}
+
         {/* Dashboard Grid */}
         {mounted ? (
           <>
@@ -353,6 +478,43 @@ export default function Home() {
               </div>
             ) : null}
 
+            {/* New: Charts Section - Shows historical telemetry data */}
+            {chartData.length > 0 && (
+              <div className="mt-16">
+                {/* Section title */}
+                <h2 className="text-center text-2xl md:text-3xl font-bold mb-12 text-cyan-400/80 uppercase tracking-wider">
+                  Telemetry History
+                </h2>
+
+                {/* Charts grid - responsive layout (1 column on mobile, 3 on desktop) */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                  {/* Satellite Health Chart */}
+                  <TelemetryChart
+                    title="Satellite Health"
+                    dataKey="satellite_health"
+                    color="cyan"
+                    unit="%"
+                  />
+
+                  {/* Failure Risk Chart */}
+                  <TelemetryChart
+                    title="Failure Risk"
+                    dataKey="failure_risk"
+                    color="red"
+                    unit="%"
+                  />
+
+                  {/* Temperature Chart */}
+                  <TelemetryChart
+                    title="Temperature"
+                    dataKey="temperature"
+                    color="green"
+                    unit="°C"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Footer stats */}
             <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-6xl mx-auto">
               {[
@@ -383,6 +545,15 @@ export default function Home() {
           }
           50% {
             opacity: 0.8;
+          }
+        }
+        @keyframes moveGradient {
+          0%,
+          100% {
+            transform: translateX(0);
+          }
+          50% {
+            transform: translateX(20px);
           }
         }
       `}</style>
